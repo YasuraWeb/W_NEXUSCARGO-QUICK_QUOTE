@@ -1,110 +1,53 @@
-import { PrismaClient } from '@prisma/client';
-import express, { Request, Response } from 'express';
-
 import csv from 'csv-parser';
-import fs from 'fs';
-// import csvToJson from 'csvtojson';
-// import * as ExcelJS from 'exceljs';
-// import * as fs from 'fs';
-import * as path from 'path';
-import { IReq, IRes } from './common';
-
-
-// interface MulterRequest extends Request {
-//   file: multer.File;
-// }
+import { Request, Response } from 'express';
+import { PrismaClient } from '@prisma/client';
+import stream from 'stream';
 
 const prisma = new PrismaClient();
-const tempFolderPath = path.join(__dirname, '../', 'temp');
 
-interface PickupCharge {
-    suburb: string;
-    postcode: string;
-    state: string;
-    type: string;
-    statistic_area: string;
-    Rate: number;
-}
-async function add(req, res) {
-    if (!req.file) {
-        return res.status(400).send('No file uploaded.')
-      }
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-    const stream = fs
-    .readvSync(req.file)
+async function add(req: Request, res: Response) {
+  const results: any[] = [];
+
+  if (!req.file) {
+    return res.status(400).json({ error: 'No file uploaded' });
+  }
+
+  const bufferStream = new stream.PassThrough();
+  bufferStream.end(req.file.buffer);
+
+  bufferStream
     .pipe(csv())
     .on('data', (data) => {
-      results.push(data)
+      results.push(data);
     })
-    .on('end', () => {
-      storedData = results
-      fs.unlink(req.file.path, (err) => {
-        if (err) {
-          console.error('Error deleting file:', err)
-          return res.status(500).send('Error cleaning up uploaded file.')
-        }
-        res.send(`File uploaded and processed. ${results.length} records stored.`)
-      })
+    .on('end', async () => {
+      // Process the results array here
+      try {
+        // Insert the results into the Prisma database in bulk
+        await prisma.PickupCharges.createMany({
+          data: results.map(record => ({
+            suburb: record.suburb,
+            postcode: record.postcode,
+            state: record.state,
+            type: record.type,
+            statistic_area: record.statistic_area,
+            Rate: record.Rate ?+record.Rate : 0,
+            // Map the CSV fields to the Prisma model fields
+            // Add other fields as necessary
+          })),
+        });
+        res.status(200).json({ message: 'CSV data imported and inserted into database successfully', data: results });
+      } catch (error) {
+        console.error('Database error:', error);
+        res.status(500).json({ error: 'Error inserting data into database' });
+      }
     })
     .on('error', (err) => {
-      console.error('Error processing file:', err)
-      fs.unlink(req.file.path, () => {
-        res.status(500).send('Error processing file.')
-      })
-    })
-
-  // Handle any additional stream errors
-  stream.on('error', (err) => {
-    console.error('Stream error:', err)
-    fs.unlink(req.file.path, () => {
-      res.status(500).send('Error reading file stream.')
-    })
-  })
-    res.status(201).json({ message: 'file uploaded successfully'}); 
-  //   csvToJson()
-  //     .fromFile(req.file)
-  //     .then((jsonObj) => {
-  //       return resolve(jsonObj);
-  //     });
-  // req = req as MulterRequest;
-  // if (!req.file) {
-  //     return res.status(400).json({ error: 'No file uploaded' });
-  //   }
-    
-  //   const results: PickupCharge[] = [];
-  //   fs.createReadStream(req.path)
-  //     .pipe(csv())
-  //     .on('data', (data) => results.push(data))
-  //     .on('end', async () => {
-  //       try {
-  //         for (const charge of results) {
-  //           await prisma.pickupCharges.upsert({
-  //             where: { suburb: charge.suburb },
-  //             update: {
-  //               postcode: charge.postcode,
-  //               state: charge.state,
-  //               type: charge.type,
-  //               statistic_area: charge.statistic_area,
-  //               Rate: charge.Rate,
-  //             },
-  //             create: {
-  //               suburb: charge.suburb,
-  //               postcode: charge.postcode,
-  //               state: charge.state,
-  //               type: charge.type,
-  //               statistic_area: charge.statistic_area,
-  //               Rate: charge.Rate,
-  //             },
-  //           });
-  //         }
-  //         res.status(200).json({ message: 'CSV data imported successfully' });
-  //       } catch (error) {
-  //         res.status(500).json({ error: 'Failed to import CSV data' });
-  //       } finally {
-  //         fs.unlinkSync(req.path); // Remove the uploaded file
-  //       }
-  //     });
+      console.error('Stream error:', err);
+      res.status(500).send('Error reading file stream.');
+    });
 }
+
 export default {
   add,
-} as const;
+};
