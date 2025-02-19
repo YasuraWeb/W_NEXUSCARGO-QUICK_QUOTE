@@ -1,0 +1,43 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model PackageDetails {
+  id         Int    @id @default(autoincrement())
+  box_type   String @db.VarChar(255)
+  max_weight Float
+  length     Float?
+  width      Float
+  height     Float
+  Rate       Float
+  Price      Float
+}
+
+model CollectionPoints {
+  id            Int    @id @default(autoincrement())
+  name          String @db.VarChar(255)
+  Address       String
+  ContactPerson String
+  Contact1      String
+  Contact2      String
+  SurCharge     Float
+  latitude      String
+  longitude     String
+}
+model PickupCharges {
+  id       Int    @id @default(autoincrement())
+  suburb   String @db.VarChar(255)
+  postcode String 
+  state    String
+  type      String
+  statistic_area   String
+  Rate       Float
+}
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+// model package_detaiils {
+// }
