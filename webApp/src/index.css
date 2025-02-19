@@ -1,0 +1,24 @@
+:root {
+  font-family: Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  background-color: #082D38;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 2rem;
+  font-synthesis: none;
+}
+
+body {
+  overflow-x: hidden;
+ 
+}
+
+.layout {
+  height: 100vh;
+  max-width: 1366px;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 20px;
+  padding-right: 20px;
+}
